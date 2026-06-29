@@ -5,10 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Говорящие часы</title>
     <style>
+        /* CSS-переменные для легкого переключения тем */
+        :root {
+            /* Авто/Светлая тема (по умолчанию) */
+            --bg-color: #f5f5f5;
+            --text-color: #111;
+            --border-color: #ccc;
+            --muted-color: #666;
+            --btn-hover: #e0e0e0;
+        }
+
+        /* Темная тема по умолчанию для темного режима */
+        :root.theme-dark {
+            --bg-color: #111;
+            --text-color: #eee;
+            --border-color: #444;
+            --muted-color: #888;
+            --btn-hover: #333;
+        }
+
+        /* Мягкий режим для светлой темы */
+        :root.soft-mode {
+            --bg-color: #eae6df; /* мягкий теплый фон сепии */
+            --text-color: #4a4740; /* приглушенный темно-серый */
+            --border-color: #cdc7bd;
+            --muted-color: #8c8577;
+            --btn-hover: #dfd9ce;
+        }
+
+        /* Мягкий режим для темной темы */
+        :root.theme-dark.soft-mode {
+            --bg-color: #1e1e1e; /* не такой глубокий черный */
+            --text-color: #aba49c; /* мягкий приглушенный серый */
+            --border-color: #383838;
+            --muted-color: #706d68;
+            --btn-hover: #292929;
+        }
+
         body {
             font-family: monospace;
-            background: #111;
-            color: #eee;
+            background: var(--bg-color);
+            color: var(--text-color);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -16,12 +53,14 @@
             height: 100vh;
             margin: 0;
             font-size: 1.2rem;
+            transition: background 0.3s, color 0.3s, border-color 0.3s;
         }
         main {
-            border: 1px dashed #444;
+            border: 1px dashed var(--border-color);
             padding: 30px;
             text-align: center;
             min-width: 320px;
+            background: transparent;
         }
         h2 {
             margin-top: 0;
@@ -38,22 +77,23 @@
         #countdown {
             font-size: 3rem;
             margin: 20px 0;
-            color: #888;
+            color: var(--muted-color);
             font-weight: bold;
         }
         #subtitle {
             font-size: 1rem;
-            color: #666;
+            color: var(--muted-color);
             margin-bottom: 15px;
             min-height: 1.2em;
         }
         input, select {
-            background: #222;
-            color: #eee;
-            border: 1px solid #444;
+            background: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
             padding: 8px;
             font-family: monospace;
             font-size: 1.1rem;
+            transition: background 0.3s, color 0.3s, border-color 0.3s;
         }
         input[type="number"] {
             width: 60px;
@@ -66,21 +106,23 @@
             cursor: pointer;
         }
         button {
-            background: #222;
-            color: #eee;
-            border: 1px solid #444;
+            background: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
             padding: 12px 24px;
             font-family: monospace;
             font-size: 1.2rem;
             cursor: pointer;
             margin: 5px;
+            transition: background 0.3s, color 0.3s, border-color 0.3s;
         }
         button:hover:not(:disabled) {
-            background: #333;
+            background: var(--btn-hover);
         }
         button:disabled {
-            color: #555;
-            border-color: #222;
+            color: var(--muted-color);
+            border-color: var(--border-color);
+            opacity: 0.5;
             cursor: not-allowed;
         }
     </style>
@@ -91,6 +133,21 @@
         <h2>Говорящие часы</h2>
         
         <div class="controls">
+            <div class="control-group">
+                <label>Тема: 
+                    <select id="themeSelect">
+                        <option value="auto">Авто</option>
+                        <option value="light">День</option>
+                        <option value="dark">Ночь</option>
+                    </select>
+                </label>
+            </div>
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="softModeCheckbox">
+                    Мягкий режим
+                </label>
+            </div>
             <div class="control-group">
                 <label>Язык: 
                     <select id="lang">
@@ -124,6 +181,91 @@
         let timerId = null;
         let countdownId = null;
         let nextSpeakTime = null;
+
+        // Элементы управления темами
+        const themeSelect = document.getElementById('themeSelect');
+        const softModeCheckbox = document.getElementById('softModeCheckbox');
+
+        // Элементы настроек таймера
+        const langSelect = document.getElementById('lang');
+        const intervalInput = document.getElementById('interval');
+        const syncToMinuteCheckbox = document.getElementById('syncToMinute');
+
+        // Загрузка настроек из LocalStorage
+        function loadSettings() {
+            if (localStorage.getItem('theme')) {
+                themeSelect.value = localStorage.getItem('theme');
+            }
+            if (localStorage.getItem('softMode')) {
+                softModeCheckbox.checked = localStorage.getItem('softMode') === 'true';
+            }
+            if (localStorage.getItem('lang')) {
+                langSelect.value = localStorage.getItem('lang');
+            }
+            if (localStorage.getItem('interval')) {
+                intervalInput.value = localStorage.getItem('interval');
+            }
+            if (localStorage.getItem('syncToMinute')) {
+                syncToMinuteCheckbox.checked = localStorage.getItem('syncToMinute') === 'true';
+            }
+            applyTheme();
+        }
+
+        // Сохранение настроек в LocalStorage
+        function saveSettings() {
+            localStorage.setItem('theme', themeSelect.value);
+            localStorage.setItem('softMode', softModeCheckbox.checked);
+            localStorage.setItem('lang', langSelect.value);
+            localStorage.setItem('interval', intervalInput.value);
+            localStorage.setItem('syncToMinute', syncToMinuteCheckbox.checked);
+        }
+
+        // Применение темы
+        function applyTheme() {
+            const theme = themeSelect.value;
+            const softMode = softModeCheckbox.checked;
+            const root = document.documentElement;
+
+            // Сброс классов
+            root.classList.remove('theme-dark', 'soft-mode');
+
+            // Определение темной темы
+            if (theme === 'dark') {
+                root.classList.add('theme-dark');
+            } else if (theme === 'auto') {
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (prefersDark) {
+                    root.classList.add('theme-dark');
+                }
+            }
+
+            // Мягкий режим
+            if (softMode) {
+                root.classList.add('soft-mode');
+            }
+        }
+
+        // Слушатели для настроек визуальной части
+        themeSelect.addEventListener('change', () => {
+            applyTheme();
+            saveSettings();
+        });
+        softModeCheckbox.addEventListener('change', () => {
+            applyTheme();
+            saveSettings();
+        });
+
+        // Слушатели для остальных настроек
+        langSelect.addEventListener('change', saveSettings);
+        intervalInput.addEventListener('change', saveSettings);
+        syncToMinuteCheckbox.addEventListener('change', saveSettings);
+
+        // Отслеживание системных изменений темы в реальном времени при режиме "Авто"
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (themeSelect.value === 'auto') {
+                applyTheme();
+            }
+        });
 
         function getSpeakingTextRU(date) {
             const hours = date.getHours();
@@ -180,7 +322,7 @@
 
         function speakTime() {
             const now = new Date();
-            const lang = document.getElementById('lang').value;
+            const lang = langSelect.value;
             let text = '';
             let langCode = 'ru-RU';
 
@@ -255,10 +397,10 @@
         }
 
         document.getElementById('startBtn').onclick = () => {
-            const minutes = parseFloat(document.getElementById('interval').value);
+            const minutes = parseFloat(intervalInput.value);
             if (isNaN(minutes) || minutes <= 0) return;
 
-            const syncToMinute = document.getElementById('syncToMinute').checked;
+            const syncToMinute = syncToMinuteCheckbox.checked;
 
             speakTime(); 
             scheduleNextTimer(minutes, syncToMinute);
@@ -278,6 +420,9 @@
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
         };
+
+        // Запуск инициализации настроек
+        loadSettings();
 
         if (typeof window !== 'undefined' && window.speechSynthesis) {
             window.speechSynthesis.getVoices();
