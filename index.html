@@ -113,10 +113,14 @@
         </div>
     </main>
 
+    <!-- Аудиоплеер для воспроизведения озвучки -->
+    <audio id="ttsAudio" style="display: none;"></audio>
+
     <script>
         let timerId = null;
         let countdownId = null;
         let nextSpeakTime = null;
+        const ttsAudio = document.getElementById('ttsAudio');
 
         function getSpeakingTextRU(date) {
             const hours = date.getHours();
@@ -175,29 +179,27 @@
             const now = new Date();
             const lang = document.getElementById('lang').value;
             let text = '';
-            let langCode = 'ru-RU';
+            let langCode = 'ru';
 
             if (lang === 'ru') {
                 text = getSpeakingTextRU(now);
-                langCode = 'ru-RU';
+                langCode = 'ru';
             } else if (lang === 'en') {
                 text = getSpeakingTextEN(now);
-                langCode = 'en-US';
+                langCode = 'en';
             } else if (lang === 'es') {
                 text = getSpeakingTextES(now);
-                langCode = 'es-ES';
-            }
-            
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = langCode;
-
-            const voices = window.speechSynthesis.getVoices();
-            const matchingVoice = voices.find(voice => voice.lang.startsWith(lang));
-            if (matchingVoice) {
-                utterance.voice = matchingVoice;
+                langCode = 'es';
             }
 
-            window.speechSynthesis.speak(utterance);
+            // Формируем URL для бесплатного API Google Translate TTS
+            const encodedText = encodeURIComponent(text);
+            const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langCode}&client=tw-ob&q=${encodedText}`;
+
+            ttsAudio.src = ttsUrl;
+            ttsAudio.play().catch(err => {
+                console.error("Ошибка воспроизведения аудио:", err);
+            });
         }
 
         function updateCountdown() {
@@ -225,16 +227,12 @@
             
             let delay = intervalMs;
             if (syncToMinute) {
-                // Высчитываем время до следующей круглой минуты (00 секунд)
                 const currentSeconds = new Date().getSeconds();
                 const currentMs = new Date().getMilliseconds();
                 const msPassedInCurrentMinute = (currentSeconds * 1000) + currentMs;
                 
-                // Для интервала N минут, мы сдвигаем до конца текущей минуты, 
-                // плюс (N - 1) минут, чтобы попасть точно в 00 секунд через N минут
                 delay = (60 * 1000) - msPassedInCurrentMinute + ((intervalMinutes - 1) * 60 * 1000);
                 
-                // Предотвращаем срабатывание с нулевой задержкой, если мы попали ровно в 00 сек.
                 if (delay <= 0) {
                     delay = intervalMs;
                 }
@@ -245,7 +243,6 @@
 
             timerId = setTimeout(() => {
                 speakTime();
-                // Рекурсивно планируем следующее озвучивание
                 scheduleNextTimer(intervalMinutes, syncToMinute);
             }, delay);
         }
@@ -256,10 +253,7 @@
 
             const syncToMinute = document.getElementById('syncToMinute').checked;
 
-            // Сразу озвучить при старте
             speakTime(); 
-
-            // Запускаем планирование следующего озвучивания
             scheduleNextTimer(minutes, syncToMinute);
 
             countdownId = setInterval(updateCountdown, 1000);
@@ -273,13 +267,11 @@
             clearInterval(countdownId);
             nextSpeakTime = null;
             document.getElementById('countdown').textContent = "--:--";
+            ttsAudio.pause();
+            ttsAudio.src = "";
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
         };
-
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-            window.speechSynthesis.getVoices();
-        }
     </script>
 </body>
 </html>
