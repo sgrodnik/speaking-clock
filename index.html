@@ -20,6 +20,7 @@
             border: 1px dashed #444;
             padding: 20px;
             text-align: center;
+            min-width: 250px;
         }
         h2 {
             margin-top: 0;
@@ -29,6 +30,11 @@
         }
         .controls {
             margin: 20px 0;
+        }
+        #countdown {
+            font-size: 2rem;
+            margin: 15px 0;
+            color: #888;
         }
         input {
             background: #222;
@@ -63,8 +69,9 @@
     <main>
         <h2>Говорящий таймер</h2>
         <div class="controls">
-            <label>Интервал (мин): <input type="number" id="interval" value="15" min="1"></label>
+            <label>Интервал (мин): <input type="number" id="interval" value="1" min="1"></label>
         </div>
+        <div id="countdown">--:--</div>
         <div>
             <button id="startBtn">Старт</button>
             <button id="stopBtn" disabled>Стоп</button>
@@ -73,6 +80,8 @@
 
     <script>
         let timerId = null;
+        let countdownId = null;
+        let nextSpeakTime = null;
 
         function getSpeakingTimeText(date) {
             const hours = date.getHours();
@@ -107,15 +116,42 @@
             window.speechSynthesis.speak(utterance);
         }
 
+        function updateCountdown() {
+            if (!nextSpeakTime) return;
+            const now = Date.now();
+            const diff = nextSpeakTime - now;
+
+            if (diff <= 0) {
+                document.getElementById('countdown').textContent = "00:00";
+                return;
+            }
+
+            const totalSeconds = Math.ceil(diff / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+
+            const minStr = String(minutes).padStart(2, '0');
+            const secStr = String(seconds).padStart(2, '0');
+            document.getElementById('countdown').textContent = `${minStr}:${secStr}`;
+        }
+
         document.getElementById('startBtn').onclick = () => {
             const minutes = parseFloat(document.getElementById('interval').value);
             if (isNaN(minutes) || minutes <= 0) return;
 
-            // Сразу озвучить при старте
+            const intervalMs = minutes * 60 * 1000;
+
             speakTime(); 
+            nextSpeakTime = Date.now() + intervalMs;
+            updateCountdown();
             
-            // Запустить интервал (минуты переводятся в миллисекунды)
-            timerId = setInterval(speakTime, minutes * 60 * 1000);
+            timerId = setInterval(() => {
+                speakTime();
+                nextSpeakTime = Date.now() + intervalMs;
+                updateCountdown();
+            }, intervalMs);
+
+            countdownId = setInterval(updateCountdown, 1000);
             
             document.getElementById('startBtn').disabled = true;
             document.getElementById('stopBtn').disabled = false;
@@ -123,6 +159,9 @@
 
         document.getElementById('stopBtn').onclick = () => {
             clearInterval(timerId);
+            clearInterval(countdownId);
+            nextSpeakTime = null;
+            document.getElementById('countdown').textContent = "--:--";
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
         };
