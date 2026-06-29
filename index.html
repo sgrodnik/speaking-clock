@@ -437,8 +437,11 @@
             return `Son ${hourWord} ${minWord}`;
         }
 
-        function speakTime() {
-            const now = new Date();
+        // targetTime — ожидаемое время срабатывания (Date или null для немедленного вызова)
+        // Передаём его явно, чтобы iOS-таймер, сработавший на 50мс раньше,
+        // озвучивал правильную минуту, а не предыдущую
+        function speakTime(targetTime) {
+            const now = targetTime instanceof Date ? targetTime : new Date();
             const lang = langSelect.value;
             let text = '';
             let langCode = 'ru-RU';
@@ -507,8 +510,10 @@
             nextSpeakTime = now + delay;
             updateCountdown();
 
+            // Передаём ожидаемое время срабатывания — исправляет баг раннего срабатывания на iOS
+            const intendedTime = new Date(now + delay);
             timerId = setTimeout(() => {
-                speakTime();
+                speakTime(intendedTime);
                 scheduleNextTimer(intervalMinutes, syncToMinute);
             }, delay);
         }
