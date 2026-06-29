@@ -41,6 +41,12 @@
             color: #888;
             font-weight: bold;
         }
+        #subtitle {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 15px;
+            min-height: 1.2em;
+        }
         input, select {
             background: #222;
             color: #eee;
@@ -78,6 +84,8 @@
             cursor: not-allowed;
         }
     </style>
+    <!-- Подключаем библиотеку Puter.js для облачного AI TTS -->
+    <script src="https://js.puter.com/v2/"></script>
 </head>
 <body>
 
@@ -106,6 +114,7 @@
         </div>
 
         <div id="countdown">--:--</div>
+        <div id="subtitle"></div>
 
         <div>
             <button id="startBtn">Старт</button>
@@ -113,14 +122,11 @@
         </div>
     </main>
 
-    <!-- Аудиоплеер для воспроизведения озвучки -->
-    <audio id="ttsAudio" style="display: none;"></audio>
-
     <script>
         let timerId = null;
         let countdownId = null;
         let nextSpeakTime = null;
-        const ttsAudio = document.getElementById('ttsAudio');
+        let currentAudio = null;
 
         function getSpeakingTextRU(date) {
             const hours = date.getHours();
@@ -175,31 +181,42 @@
             return `Son ${hourWord} ${minWord}`;
         }
 
-        function speakTime() {
+        async function speakTime() {
             const now = new Date();
             const lang = document.getElementById('lang').value;
             let text = '';
-            let langCode = 'ru';
 
             if (lang === 'ru') {
                 text = getSpeakingTextRU(now);
-                langCode = 'ru';
             } else if (lang === 'en') {
                 text = getSpeakingTextEN(now);
-                langCode = 'en';
             } else if (lang === 'es') {
                 text = getSpeakingTextES(now);
-                langCode = 'es';
             }
 
-            // Формируем URL для бесплатного API Google Translate TTS
-            const encodedText = encodeURIComponent(text);
-            const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langCode}&client=tw-ob&q=${encodedText}`;
+            // Выводим текст озвучки на экран
+            document.getElementById('subtitle').textContent = text;
 
-            ttsAudio.src = ttsUrl;
-            ttsAudio.play().catch(err => {
-                console.error("Ошибка воспроизведения аудио:", err);
-            });
+            try {
+                // Используем Puter AI Text-to-Speech
+                // Доступные языки передаются в запросе
+                const audio = await puter.ai.txt2speech(text, lang);
+                
+                // Если играет предыдущая аудиозапись, останавливаем её
+                if (currentAudio) {
+                    currentAudio.pause();
+                }
+                
+                currentAudio = audio;
+                audio.play();
+            } catch (err) {
+                console.error("Ошибка Puter.js TTS:", err);
+                
+                // Резервный фолбек на браузерный TTS на случай оффлайна или сбоя сети
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = lang === 'ru' ? 'ru-RU' : (lang === 'en' ? 'en-US' : 'es-ES');
+                window.speechSynthesis.speak(utterance);
+            }
         }
 
         function updateCountdown() {
@@ -267,8 +284,11 @@
             clearInterval(countdownId);
             nextSpeakTime = null;
             document.getElementById('countdown').textContent = "--:--";
-            ttsAudio.pause();
-            ttsAudio.src = "";
+            document.getElementById('subtitle').textContent = "";
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
         };
