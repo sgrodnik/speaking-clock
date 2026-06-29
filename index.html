@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Говорящий таймер</title>
+    <title>Говорящие часы</title>
     <style>
         body {
             font-family: monospace;
@@ -88,7 +88,7 @@
 <body>
 
     <main>
-        <h2>Говорящий таймер</h2>
+        <h2>Говорящие часы</h2>
         
         <div class="controls">
             <div class="control-group">
@@ -200,7 +200,6 @@
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = langCode;
 
-            // Находим подходящий голос для выбранного языка
             const voices = window.speechSynthesis.getVoices();
             const matchingVoice = voices.find(voice => voice.lang.startsWith(lang));
             if (matchingVoice) {
