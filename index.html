@@ -178,7 +178,20 @@
             
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = langCode;
+
+            // Находим подходящий голос для выбранного языка в системе
+            const voices = window.speechSynthesis.getVoices();
+            const matchingVoice = voices.find(voice => voice.lang.startsWith(lang));
+            if (matchingVoice) {
+                utterance.voice = matchingVoice;
+            }
+
             window.speechSynthesis.speak(utterance);
+        }
+
+        // Вызов getVoices() при старте, чтобы браузер успел их загрузить
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.getVoices();
         }
 
         function updateCountdown() {
