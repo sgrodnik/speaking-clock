@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Говорящие часы</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #111;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #clock {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #222;
+            color: #eee;
+            border: 1px solid #444;
+            padding: 10px 20px;
+            font-family: monospace;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="clock">00:00:00</div>
+    <button id="speak-btn">Озвучить время</button>
+
+    <script>
+        const clockEl = document.getElementById('clock');
+        const speakBtn = document.getElementById('speak-btn');
+
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toTimeString().split(' ')[0];
+            clockEl.textContent = timeString;
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function getSpeakingTimeText(date) {
+            const hours = date.getHours();
+            const minutes = date.getMinutes();
+            
+            let hoursStr = '';
+            if (hours === 0) hoursStr = 'ноль часов';
+            else if (hours === 1 || hours === 21) hoursStr = hours + ' час';
+            else if ((hours >= 2 && hours <= 4) || (hours >= 22 && hours <= 23)) hoursStr = hours + ' часа';
+            else hoursStr = hours + ' часов';
+
+            let minutesStr = '';
+            if (minutes === 0) {
+                minutesStr = 'ровно';
+            } else if (minutes === 1 || minutes === 21 || minutes === 31 || minutes === 41 || minutes === 51) {
+                minutesStr = minutes + ' минута';
+            } else if ((minutes >= 2 && minutes <= 4) || (minutes >= 22 && minutes <= 24) || (minutes >= 32 && minutes <= 34) || (minutes >= 42 && minutes <= 44) || (minutes >= 52 && minutes <= 54)) {
+                minutesStr = minutes + ' минуты';
+            } else {
+                minutesStr = minutes + ' минут';
+            }
+
+            return `Сейчас ${hoursStr} ${minutesStr}`;
+        }
+
+        speakBtn.addEventListener('click', () => {
+            const now = new Date();
+            const text = getSpeakingTimeText(now);
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ru-RU';
+            window.speechSynthesis.speak(utterance);
+        });
+    </script>
+</body>
+</html>
