@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Говорящие часы</title>
+    <title>Говорящий таймер</title>
     <style>
         body {
             font-family: monospace;
@@ -16,40 +16,63 @@
             height: 100vh;
             margin: 0;
         }
-        #clock {
-            font-size: 3rem;
-            margin-bottom: 20px;
+        main {
+            border: 1px dashed #444;
+            padding: 20px;
+            text-align: center;
+        }
+        h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        input {
+            background: #222;
+            color: #eee;
+            border: 1px solid #444;
+            padding: 5px;
+            font-family: monospace;
+            width: 50px;
+            text-align: center;
         }
         button {
             background: #222;
             color: #eee;
             border: 1px solid #444;
-            padding: 10px 20px;
+            padding: 8px 15px;
             font-family: monospace;
             cursor: pointer;
+            margin: 5px;
         }
-        button:hover {
+        button:hover:not(:disabled) {
             background: #333;
+        }
+        button:disabled {
+            color: #555;
+            border-color: #222;
+            cursor: not-allowed;
         }
     </style>
 </head>
 <body>
 
-    <div id="clock">00:00:00</div>
-    <button id="speak-btn">Озвучить время</button>
+    <main>
+        <h2>Говорящий таймер</h2>
+        <div class="controls">
+            <label>Интервал (мин): <input type="number" id="interval" value="15" min="1"></label>
+        </div>
+        <div>
+            <button id="startBtn">Старт</button>
+            <button id="stopBtn" disabled>Стоп</button>
+        </div>
+    </main>
 
     <script>
-        const clockEl = document.getElementById('clock');
-        const speakBtn = document.getElementById('speak-btn');
-
-        function updateClock() {
-            const now = new Date();
-            const timeString = now.toTimeString().split(' ')[0];
-            clockEl.textContent = timeString;
-        }
-
-        setInterval(updateClock, 1000);
-        updateClock();
+        let timerId = null;
 
         function getSpeakingTimeText(date) {
             const hours = date.getHours();
@@ -72,16 +95,37 @@
                 minutesStr = minutes + ' минут';
             }
 
-            return `Сейчас ${hoursStr} ${minutesStr}`;
+            return `Время ${hoursStr} ${minutesStr}`;
         }
 
-        speakBtn.addEventListener('click', () => {
+        function speakTime() {
             const now = new Date();
-            const text = getSpeakingTimeText(now);
-            const utterance = new SpeechSynthesisUtterance(text);
+            const timeStr = getSpeakingTimeText(now);
+            
+            const utterance = new SpeechSynthesisUtterance(timeStr);
             utterance.lang = 'ru-RU';
             window.speechSynthesis.speak(utterance);
-        });
+        }
+
+        document.getElementById('startBtn').onclick = () => {
+            const minutes = parseFloat(document.getElementById('interval').value);
+            if (isNaN(minutes) || minutes <= 0) return;
+
+            // Сразу озвучить при старте
+            speakTime(); 
+            
+            // Запустить интервал (минуты переводятся в миллисекунды)
+            timerId = setInterval(speakTime, minutes * 60 * 1000);
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+        };
+
+        document.getElementById('stopBtn').onclick = () => {
+            clearInterval(timerId);
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        };
     </script>
 </body>
 </html>
