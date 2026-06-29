@@ -15,42 +15,51 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
+            font-size: 1.2rem;
         }
         main {
             border: 1px dashed #444;
-            padding: 20px;
+            padding: 30px;
             text-align: center;
-            min-width: 250px;
+            min-width: 320px;
         }
         h2 {
             margin-top: 0;
-            font-size: 1.2rem;
+            font-size: 1.5rem;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
         .controls {
-            margin: 20px 0;
+            margin: 25px 0;
+        }
+        .lang-select {
+            margin-bottom: 15px;
         }
         #countdown {
-            font-size: 2rem;
-            margin: 15px 0;
+            font-size: 3rem;
+            margin: 20px 0;
             color: #888;
+            font-weight: bold;
         }
-        input {
+        input, select {
             background: #222;
             color: #eee;
             border: 1px solid #444;
-            padding: 5px;
+            padding: 8px;
             font-family: monospace;
-            width: 50px;
+            font-size: 1.1rem;
+        }
+        input {
+            width: 60px;
             text-align: center;
         }
         button {
             background: #222;
             color: #eee;
             border: 1px solid #444;
-            padding: 8px 15px;
+            padding: 12px 24px;
             font-family: monospace;
+            font-size: 1.2rem;
             cursor: pointer;
             margin: 5px;
         }
@@ -68,10 +77,24 @@
 
     <main>
         <h2>Говорящий таймер</h2>
+        
         <div class="controls">
-            <label>Интервал (мин): <input type="number" id="interval" value="1" min="1"></label>
+            <div class="lang-select">
+                <label>Язык: 
+                    <select id="lang">
+                        <option value="ru" selected>Русский</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                    </select>
+                </label>
+            </div>
+            <div>
+                <label>Интервал (мин): <input type="number" id="interval" value="1" min="1"></label>
+            </div>
         </div>
+
         <div id="countdown">--:--</div>
+
         <div>
             <button id="startBtn">Старт</button>
             <button id="stopBtn" disabled>Стоп</button>
@@ -83,7 +106,7 @@
         let countdownId = null;
         let nextSpeakTime = null;
 
-        function getSpeakingTimeText(date) {
+        function getSpeakingTextRU(date) {
             const hours = date.getHours();
             const minutes = date.getMinutes();
             
@@ -107,12 +130,54 @@
             return `Время ${hoursStr} ${minutesStr}`;
         }
 
+        function getSpeakingTextEN(date) {
+            const hours = date.getHours();
+            const minutes = date.getMinutes();
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours % 12 || 12;
+            const displayMinutes = minutes < 10 ? '0' + minutes : minutes;
+            return `The time is ${displayHours} ${displayMinutes} ${period}`;
+        }
+
+        function getSpeakingTextES(date) {
+            const hours = date.getHours();
+            const minutes = date.getMinutes();
+            
+            let hourWord = hours === 1 || hours === 13 ? 'la una' : `las ${hours % 12 || 12}`;
+            let minWord = '';
+            
+            if (minutes === 0) {
+                minWord = 'en punto';
+            } else if (minutes === 30) {
+                minWord = 'y media';
+            } else if (minutes === 15) {
+                minWord = 'y cuarto';
+            } else {
+                minWord = `y ${minutes}`;
+            }
+            
+            return `Son ${hourWord} ${minWord}`;
+        }
+
         function speakTime() {
             const now = new Date();
-            const timeStr = getSpeakingTimeText(now);
+            const lang = document.getElementById('lang').value;
+            let text = '';
+            let langCode = 'ru-RU';
+
+            if (lang === 'ru') {
+                text = getSpeakingTextRU(now);
+                langCode = 'ru-RU';
+            } else if (lang === 'en') {
+                text = getSpeakingTextEN(now);
+                langCode = 'en-US';
+            } else if (lang === 'es') {
+                text = getSpeakingTextES(now);
+                langCode = 'es-ES';
+            }
             
-            const utterance = new SpeechSynthesisUtterance(timeStr);
-            utterance.lang = 'ru-RU';
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = langCode;
             window.speechSynthesis.speak(utterance);
         }
 
