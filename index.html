@@ -32,7 +32,7 @@
         .controls {
             margin: 25px 0;
         }
-        .lang-select {
+        .control-group {
             margin-bottom: 15px;
         }
         #countdown {
@@ -49,9 +49,15 @@
             font-family: monospace;
             font-size: 1.1rem;
         }
-        input {
+        input[type="number"] {
             width: 60px;
             text-align: center;
+        }
+        input[type="checkbox"] {
+            transform: scale(1.3);
+            vertical-align: middle;
+            margin-right: 5px;
+            cursor: pointer;
         }
         button {
             background: #222;
@@ -79,7 +85,7 @@
         <h2>Говорящий таймер</h2>
         
         <div class="controls">
-            <div class="lang-select">
+            <div class="control-group">
                 <label>Язык: 
                     <select id="lang">
                         <option value="ru" selected>Русский</option>
@@ -88,8 +94,14 @@
                     </select>
                 </label>
             </div>
-            <div>
+            <div class="control-group">
                 <label>Интервал (мин): <input type="number" id="interval" value="1" min="1"></label>
+            </div>
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="syncToMinute" checked>
+                    Синхронизировать в 00 сек.
+                </label>
             </div>
         </div>
 
@@ -179,7 +191,6 @@
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = langCode;
 
-            // Находим подходящий голос для выбранного языка в системе
             const voices = window.speechSynthesis.getVoices();
             const matchingVoice = voices.find(voice => voice.lang.startsWith(lang));
             if (matchingVoice) {
@@ -187,11 +198,6 @@
             }
 
             window.speechSynthesis.speak(utterance);
-        }
-
-        // Вызов getVoices() при старте, чтобы браузер успел их загрузить
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-            window.speechSynthesis.getVoices();
         }
 
         function updateCountdown() {
@@ -213,21 +219,48 @@
             document.getElementById('countdown').textContent = `${minStr}:${secStr}`;
         }
 
+        function scheduleNextTimer(intervalMinutes, syncToMinute) {
+            const intervalMs = intervalMinutes * 60 * 1000;
+            const now = Date.now();
+            
+            let delay = intervalMs;
+            if (syncToMinute) {
+                // Высчитываем время до следующей круглой минуты (00 секунд)
+                const currentSeconds = new Date().getSeconds();
+                const currentMs = new Date().getMilliseconds();
+                const msPassedInCurrentMinute = (currentSeconds * 1000) + currentMs;
+                
+                // Для интервала N минут, мы сдвигаем до конца текущей минуты, 
+                // плюс (N - 1) минут, чтобы попасть точно в 00 секунд через N минут
+                delay = (60 * 1000) - msPassedInCurrentMinute + ((intervalMinutes - 1) * 60 * 1000);
+                
+                // Предотвращаем срабатывание с нулевой задержкой, если мы попали ровно в 00 сек.
+                if (delay <= 0) {
+                    delay = intervalMs;
+                }
+            }
+
+            nextSpeakTime = now + delay;
+            updateCountdown();
+
+            timerId = setTimeout(() => {
+                speakTime();
+                // Рекурсивно планируем следующее озвучивание
+                scheduleNextTimer(intervalMinutes, syncToMinute);
+            }, delay);
+        }
+
         document.getElementById('startBtn').onclick = () => {
             const minutes = parseFloat(document.getElementById('interval').value);
             if (isNaN(minutes) || minutes <= 0) return;
 
-            const intervalMs = minutes * 60 * 1000;
+            const syncToMinute = document.getElementById('syncToMinute').checked;
 
+            // Сразу озвучить при старте
             speakTime(); 
-            nextSpeakTime = Date.now() + intervalMs;
-            updateCountdown();
-            
-            timerId = setInterval(() => {
-                speakTime();
-                nextSpeakTime = Date.now() + intervalMs;
-                updateCountdown();
-            }, intervalMs);
+
+            // Запускаем планирование следующего озвучивания
+            scheduleNextTimer(minutes, syncToMinute);
 
             countdownId = setInterval(updateCountdown, 1000);
             
@@ -236,13 +269,17 @@
         };
 
         document.getElementById('stopBtn').onclick = () => {
-            clearInterval(timerId);
+            clearTimeout(timerId);
             clearInterval(countdownId);
             nextSpeakTime = null;
             document.getElementById('countdown').textContent = "--:--";
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
         };
+
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.getVoices();
+        }
     </script>
 </body>
 </html>
