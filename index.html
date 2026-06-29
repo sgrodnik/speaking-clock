@@ -84,8 +84,6 @@
             cursor: not-allowed;
         }
     </style>
-    <!-- Подключаем библиотеку Puter.js для облачного AI TTS -->
-    <script src="https://js.puter.com/v2/"></script>
 </head>
 <body>
 
@@ -126,7 +124,6 @@
         let timerId = null;
         let countdownId = null;
         let nextSpeakTime = null;
-        let currentAudio = null;
 
         function getSpeakingTextRU(date) {
             const hours = date.getHours();
@@ -181,42 +178,36 @@
             return `Son ${hourWord} ${minWord}`;
         }
 
-        async function speakTime() {
+        function speakTime() {
             const now = new Date();
             const lang = document.getElementById('lang').value;
             let text = '';
+            let langCode = 'ru-RU';
 
             if (lang === 'ru') {
                 text = getSpeakingTextRU(now);
+                langCode = 'ru-RU';
             } else if (lang === 'en') {
                 text = getSpeakingTextEN(now);
+                langCode = 'en-US';
             } else if (lang === 'es') {
                 text = getSpeakingTextES(now);
+                langCode = 'es-ES';
             }
 
-            // Выводим текст озвучки на экран
             document.getElementById('subtitle').textContent = text;
 
-            try {
-                // Используем Puter AI Text-to-Speech
-                // Доступные языки передаются в запросе
-                const audio = await puter.ai.txt2speech(text, lang);
-                
-                // Если играет предыдущая аудиозапись, останавливаем её
-                if (currentAudio) {
-                    currentAudio.pause();
-                }
-                
-                currentAudio = audio;
-                audio.play();
-            } catch (err) {
-                console.error("Ошибка Puter.js TTS:", err);
-                
-                // Резервный фолбек на браузерный TTS на случай оффлайна или сбоя сети
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = lang === 'ru' ? 'ru-RU' : (lang === 'en' ? 'en-US' : 'es-ES');
-                window.speechSynthesis.speak(utterance);
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = langCode;
+
+            // Находим подходящий голос для выбранного языка
+            const voices = window.speechSynthesis.getVoices();
+            const matchingVoice = voices.find(voice => voice.lang.startsWith(lang));
+            if (matchingVoice) {
+                utterance.voice = matchingVoice;
             }
+
+            window.speechSynthesis.speak(utterance);
         }
 
         function updateCountdown() {
@@ -285,13 +276,13 @@
             nextSpeakTime = null;
             document.getElementById('countdown').textContent = "--:--";
             document.getElementById('subtitle').textContent = "";
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
         };
+
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.getVoices();
+        }
     </script>
 </body>
 </html>
